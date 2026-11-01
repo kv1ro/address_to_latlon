@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>建物座標ピッカー</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .progress {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 4px;
+    }
+    .name {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    .address {
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 12px;
+    }
+    #map {
+      height: 60vh;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    form {
+      margin-top: 12px;
+    }
+    .coords {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .coords label {
+      display: flex;
+      flex-direction: column;
+      font-size: 12px;
+      color: #555;
+    }
+    .coords input {
+      font-size: 14px;
+      padding: 4px 6px;
+      width: 160px;
+    }
+    .buttons {
+      display: flex;
+      gap: 8px;
+    }
+    .buttons button {
+      font-size: 14px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    .done {
+      font-size: 18px;
+      padding: 24px 0;
+    }
+  </style>
+</head>
+<body>
+  <% if @done %>
+    <div class="done">全部終わったよ。data/output.csv を見てね</div>
+  <% else %>
+    <div class="progress"><%= @index + 1 %> / <%= @total %></div>
+    <div class="name"><%= @current[:name] %></div>
+    <div class="address"><%= @current[:address] %></div>
+
+    <div id="map"></div>
+
+    <form method="post">
+      <div class="coords">
+        <label>
+          緯度
+          <input type="text" id="lat" name="lat" readonly>
+        </label>
+        <label>
+          経度
+          <input type="text" id="lng" name="lng" readonly>
+        </label>
+      </div>
+      <div class="buttons">
+        <button type="submit" formaction="/save">保存して次へ</button>
+        <button type="submit" formaction="/skip">スキップ</button>
+        <button type="submit" formaction="/undo">1つ戻る</button>
+      </div>
+    </form>
+
+    <script>
+      (function () {
+        var geo = <%= @geo ? @geo.to_json : "null" %>;
+        var initialLat = geo && geo.lat != null ? geo.lat : 35.681236;
+        var initialLng = geo && geo.lng != null ? geo.lng : 139.767125;
+
+        var map = L.map("map").setView([initialLat, initialLng], 17);
+
+        var aerial = L.tileLayer(
+          "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
+          {
+            maxZoom: 18,
+            maxNativeZoom: 18,
+            attribution:
+              '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
+          }
+        );
+
+        var std = L.tileLayer(
+          "https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",
+          {
+            maxZoom: 18,
+            maxNativeZoom: 18,
+            attribution:
+              '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
+          }
+        );
+
+        aerial.addTo(map);
+
+        L.control
+          .layers(
+            { "航空写真": aerial, "標準地図": std },
+            {},
+            { collapsed: false }
+          )
+          .addTo(map);
+
+        var latInput = document.getElementById("lat");
+        var lngInput = document.getElementById("lng");
+
+        var marker = null;
+
+        function setInputs(latlng) {
+          latInput.value = latlng.lat.toFixed(6);
+          lngInput.value = latlng.lng.toFixed(6);
+        }
+
+        function placeMarker(latlng) {
+          if (marker) {
+            marker.setLatLng(latlng);
+          } else {
+            marker = L.marker(latlng, { draggable: true }).addTo(map);
+            marker.on("dragend", function () {
+              setInputs(marker.getLatLng());
+            });
+          }
+          setInputs(latlng);
+        }
+
+        map.on("click", function (e) {
+          placeMarker(e.latlng);
+        });
+      })();
+    </script>
+  <% end %>
+</body>
+</html>
