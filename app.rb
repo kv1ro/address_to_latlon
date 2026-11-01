@@ -7,14 +7,19 @@ require "uri"
 set :bind, "127.0.0.1"
 set :port, 4567
 
-INPUT_CSV  = File.join(__dir__, "data", "input.csv")
-OUTPUT_CSV = File.join(__dir__, "data", "output.csv")
+INPUT_TSV  = File.join(__dir__, "data", "input.tsv")
+OUTPUT_TSV = File.join(__dir__, "data", "output.tsv")
 INDEX_FILE = File.join(__dir__, "data", ".index")
 
-# input.csv を読み込む（ヘッダー: 建物名,住所）
+unless File.exist?(INPUT_TSV)
+  warn "data/input.tsv が見つかりません。作成してください。"
+  exit 1
+end
+
+# input.tsv を読み込む（ヘッダー: 建物名<TAB>住所）
 def load_input
   rows = []
-  CSV.foreach(INPUT_CSV, headers: true) do |row|
+  CSV.foreach(INPUT_TSV, headers: true, col_sep: "\t") do |row|
     rows << { name: row["建物名"], address: row["住所"] }
   end
   rows
@@ -52,10 +57,10 @@ rescue StandardError => e
   nil
 end
 
-# 出力CSVに1行追記（ヘッダーが無ければ付与）
+# 出力TSVに1行追記（ヘッダーが無ければ付与）
 def append_output(name, address, lat, lng)
-  new_file = !File.exist?(OUTPUT_CSV) || File.zero?(OUTPUT_CSV)
-  CSV.open(OUTPUT_CSV, "a") do |csv|
+  new_file = !File.exist?(OUTPUT_TSV) || File.zero?(OUTPUT_TSV)
+  CSV.open(OUTPUT_TSV, "a", col_sep: "\t") do |csv|
     csv << ["建物名", "住所", "緯度", "経度"] if new_file
     csv << [name, address, lat, lng]
   end
@@ -109,10 +114,10 @@ end
 post "/undo" do
   i = read_index
   if i > 0
-    # output.csv の最終行を削除（ヘッダーのみは残す）
-    lines = File.readlines(OUTPUT_CSV, chomp: true)
+    # output.tsv の最終行を削除（ヘッダーのみは残す）
+    lines = File.readlines(OUTPUT_TSV, chomp: true)
     lines.pop if lines.size > 1
-    File.write(OUTPUT_CSV, lines.join("\n") + "\n")
+    File.write(OUTPUT_TSV, lines.join("\n") + "\n")
     write_index(i - 1)
   end
   redirect "/"

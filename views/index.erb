@@ -73,6 +73,10 @@
       padding: 8px 16px;
       cursor: pointer;
     }
+    .buttons button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
     .done {
       font-size: 18px;
       padding: 24px 0;
@@ -81,7 +85,7 @@
 </head>
 <body>
   <% if @done || @current.nil? %>
-    <div class="done">全部終わったよ。data/output.csv を見てね</div>
+    <div class="done">全部終わったよ。data/output.tsv を見てね</div>
   <% else %>
     <div class="progress"><%= @index + 1 %> / <%= @total %></div>
     <div class="name"><%= @current[:name] %></div>
@@ -101,7 +105,7 @@
         </label>
       </div>
       <div class="buttons">
-        <button type="submit" formaction="/save">保存して次へ</button>
+        <button type="submit" id="save-btn" formaction="/save" disabled>保存して次へ</button>
         <button type="submit" formaction="/skip">スキップ</button>
         <button type="submit" formaction="/undo">1つ戻る</button>
       </div>
@@ -155,12 +159,14 @@
 
         var latInput = document.getElementById("lat");
         var lngInput = document.getElementById("lng");
+        var saveBtn = document.getElementById("save-btn");
 
         var marker = null;
 
         function setInputs(latlng) {
           latInput.value = latlng.lat.toFixed(6);
           lngInput.value = latlng.lng.toFixed(6);
+          saveBtn.disabled = false;
         }
 
         function placeMarker(latlng) {
