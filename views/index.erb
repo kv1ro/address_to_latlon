@@ -80,7 +80,7 @@
   </style>
 </head>
 <body>
-  <% if @done %>
+  <% if @done || @current.nil? %>
     <div class="done">全部終わったよ。data/output.csv を見てね</div>
   <% else %>
     <div class="progress"><%= @index + 1 %> / <%= @total %></div>
