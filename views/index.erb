@@ -147,11 +147,11 @@
           }
         );
 
-        aerial.addTo(map);
+        osm.addTo(map);
 
         L.control
           .layers(
-            { "航空写真": aerial, "標準地図": std, "OSM（建物名あり）": osm },
+            { "OSM（建物名あり）": osm, "航空写真": aerial, "標準地図": std },
             {},
             { collapsed: false }
           )
