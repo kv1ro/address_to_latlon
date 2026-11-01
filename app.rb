@@ -67,10 +67,10 @@ get "/" do
   @total = @rows.size
 
   if @index >= @total
-    @finished = true
+    @done = true
     erb :index
   else
-    @finished = false
+    @done     = false
     @current  = @rows[@index]
     @geo      = geocode(@current[:address])
     erb :index
@@ -107,19 +107,13 @@ post "/skip" do
 end
 
 post "/undo" do
-  i = load_index
+  i = read_index
   if i > 0
-    # output.csv の最終行を削除（ヘッダーは残す）
+    # output.csv の最終行を削除（ヘッダーのみは残す）
     lines = File.readlines(OUTPUT_CSV, chomp: true)
     lines.pop if lines.size > 1
     File.write(OUTPUT_CSV, lines.join("\n") + "\n")
-    save_index(i - 1)
+    write_index(i - 1)
   end
-  redirect "/"
-end
-
-post "/back" do
-  index = read_index
-  write_index([index - 1, 0].max)
   redirect "/"
 end
