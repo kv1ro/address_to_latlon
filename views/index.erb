@@ -135,11 +135,19 @@
           }
         );
 
+        var osm = L.tileLayer(
+          "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+          {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+          }
+        );
+
         aerial.addTo(map);
 
         L.control
           .layers(
-            { "航空写真": aerial, "標準地図": std },
+            { "航空写真": aerial, "標準地図": std, "OSM（建物名あり）": osm },
             {},
             { collapsed: false }
           )
