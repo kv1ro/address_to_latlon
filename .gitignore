@@ -1,0 +1,5 @@
+vendor/bundle
+.bundle
+data/.index
+data/output.csv
+.DS_Store
