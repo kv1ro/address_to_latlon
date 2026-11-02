@@ -59,6 +59,24 @@
       color: #777;
       margin-bottom: 8px;
     }
+    .candidate-marker span {
+      display: block;
+      width: 22px;
+      height: 22px;
+      line-height: 22px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: bold;
+      color: #fff;
+      background: #e67e22;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+    }
+    .candidate-marker span:hover {
+      background: #d35400;
+    }
     .name {
       font-size: 20px;
       font-weight: bold;
@@ -155,9 +173,10 @@
 
     <script>
       (function () {
-        var geo = <%= @geo ? JSON.generate(@geo) : "null" %>;
-        var initialLat = geo && geo.lat != null ? geo.lat : 35.681236;
-        var initialLng = geo && geo.lng != null ? geo.lng : 139.767125;
+        var candidates = <%= JSON.generate(@candidates) %>;
+        var first = candidates.length > 0 ? candidates[0] : null;
+        var initialLat = first ? first.lat : 35.681236;
+        var initialLng = first ? first.lng : 139.767125;
 
         var map = L.map("map").setView([initialLat, initialLng], 17);
 
@@ -226,6 +245,42 @@
         map.on("click", function (e) {
           placeMarker(e.latlng);
         });
+
+        // 住所検索のヒット候補を小さなピンで表示。クリックで本ピンに昇格する
+        var FOCUS_ZOOM = 18;
+
+        if (candidates.length > 0) {
+          var bounds = L.latLngBounds([]);
+
+          candidates.forEach(function (c, i) {
+            bounds.extend([c.lat, c.lng]);
+
+            var label = c.title || c.lat + ", " + c.lng;
+            var hint = ' title="' + label.replace(/"/g, "&quot;") + '"';
+            var icon = L.divIcon({
+              className: "candidate-marker",
+              html: "<span" + hint + ">" + (i + 1) + "</span>",
+              iconSize: [22, 22],
+              iconAnchor: [11, 11]
+            });
+
+            var m = L.marker([c.lat, c.lng], { icon: icon, title: label }).addTo(map);
+            m.bindTooltip((i + 1) + ". " + label);
+            m.on("click", function (e) {
+              L.DomEvent.stopPropagation(e);
+              placeMarker(L.latLng(c.lat, c.lng));
+            });
+          });
+
+          if (candidates.length > 1) {
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: FOCUS_ZOOM });
+          }
+
+          // 1件しか無ければそのまま本ピンを立てておく
+          if (candidates.length === 1) {
+            placeMarker(L.latLng(first.lat, first.lng));
+          }
+        }
       })();
     </script>
   <% end %>

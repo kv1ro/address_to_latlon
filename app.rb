@@ -10,6 +10,9 @@ INDEX_FILE = File.join(__dir__, "data", ".index")
 CONFIG_TSV = File.join(__dir__, "data", "config.tsv")
 PREF_FILE  = File.join(__dir__, "data", ".pref")
 
+# 住所検索の候補ピンの表示上限
+MAX_CANDIDATES = 10
+
 # 日本全国の都道府県（絞り込み欄の候補。自由入力も可）
 PREFECTURES = %w[
   北海道 青森県 岩手県 宮城県 秋田県 山形県 福島県
@@ -69,9 +72,9 @@ def write_index(i)
 end
 
 # 国土地理院 住所検索APIで住所をジオコーディング
-# 返り値: { lat:, lng: } または nil
+# 返り値: [{ lat:, lng:, title: }, ...]（ヒット順）
 def geocode(query)
-  return nil if query.nil? || query.strip.empty?
+  return [] if query.nil? || query.strip.empty?
 
   uri = URI("https://msearch.gsi.go.jp/address-search/AddressSearch")
   uri.query = URI.encode_www_form(q: query)
@@ -80,20 +83,26 @@ def geocode(query)
                         open_timeout: 5, read_timeout: 5) do |http|
     http.get(uri.request_uri)
   end
-  return nil unless res.is_a?(Net::HTTPSuccess)
+  return [] unless res.is_a?(Net::HTTPSuccess)
 
   data = JSON.parse(res.body)
-  return nil if data.empty?
+  data = [] unless data.is_a?(Array)
+  return [] unless data.is_a?(Array)
 
-  # geometry.coordinates は [経度, 緯度] の順
-  coords = data.dig(0, "geometry", "coordinates")
-  return nil unless coords.is_a?(Array) && coords.size >= 2
+  # 候補が多いと地図がピンで埋まるので最大 MAX_CANDIDATES 件に絞る
+  data.filter_map { |item|
+    # geometry.coordinates は [経度, 緯度] の順
+    coords = item.dig("geometry", "coordinates")
+    next unless coords.is_a?(Array) && coords.size >= 2
 
-  lng, lat = coords
-  { lat: lat, lng: lng }
+    lng, lat = coords
+    next unless lat.is_a?(Numeric) && lng.is_a?(Numeric)
+
+    { lat: lat, lng: lng, title: item["properties"]&.dig("title").to_s }
+  }.first(MAX_CANDIDATES)
 rescue StandardError => e
   warn "geocode error: #{e.class}: #{e.message}"
-  nil
+  []
 end
 
 # 出力TSVに1行追記（ヘッダーが無ければ付与）
@@ -130,7 +139,7 @@ get "/" do
     # 行ごとの都道府県列 > 画面上の絞り込み欄 の順で優先
     @query    = search_query(@current[:pref].to_s.strip.empty? ? @pref : @current[:pref],
                              @current[:address])
-    @geo      = geocode(@query)
+    @candidates = geocode(@query)
     erb :index
   end
 end

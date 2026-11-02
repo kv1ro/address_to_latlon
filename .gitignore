@@ -1,7 +1,8 @@
-vendor/bundle
+.aider*
 data/.index
+data/input.tsv
 data/output.csv
 data/output.tsv
-.DS_Store
-.aider*
 data/.pref
+.DS_Store
+vendor/bundle
