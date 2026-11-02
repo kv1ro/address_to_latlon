@@ -1,8 +1,6 @@
 vendor/bundle
-.bundle
 data/.index
 data/output.csv
 data/output.tsv
 .DS_Store
-Gemfile.lock
 .aider*

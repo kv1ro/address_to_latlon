@@ -88,8 +88,8 @@
     <div class="done">全部終わったよ。data/output.tsv を見てね</div>
   <% else %>
     <div class="progress"><%= @index + 1 %> / <%= @total %></div>
-    <div class="name"><%= @current[:name] %></div>
-    <div class="address"><%= @current[:address] %></div>
+    <div class="name"><%= h @current[:name] %></div>
+    <div class="address"><%= h @current[:address] %></div>
 
     <div id="map"></div>
 
@@ -113,7 +113,7 @@
 
     <script>
       (function () {
-        var geo = <%= @geo ? @geo.to_json : "null" %>;
+        var geo = <%= @geo ? JSON.generate(@geo) : "null" %>;
         var initialLat = geo && geo.lat != null ? geo.lat : 35.681236;
         var initialLng = geo && geo.lng != null ? geo.lng : 139.767125;
 

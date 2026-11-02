@@ -4,12 +4,16 @@ require "json"
 require "net/http"
 require "uri"
 
-set :bind, "127.0.0.1"
-set :port, 4567
-
 INPUT_TSV  = File.join(__dir__, "data", "input.tsv")
 OUTPUT_TSV = File.join(__dir__, "data", "output.tsv")
 INDEX_FILE = File.join(__dir__, "data", ".index")
+
+# Sinatra の erb は自動エスケープしないため、ビュー用の h を用意する
+helpers do
+  def h(s)
+    Rack::Utils.escape_html(s.to_s)
+  end
+end
 
 unless File.exist?(INPUT_TSV)
   warn "data/input.tsv が見つかりません。作成してください。"
@@ -19,7 +23,8 @@ end
 # input.tsv を読み込む（ヘッダー: 建物名<TAB>住所）
 def load_input
   rows = []
-  CSV.foreach(INPUT_TSV, headers: true, col_sep: "\t") do |row|
+  # liberal_parsing: 住所に含まれるダブルクォートで 500 にならないようにする
+  CSV.foreach(INPUT_TSV, headers: true, col_sep: "\t", liberal_parsing: true) do |row|
     rows << { name: row["建物名"], address: row["住所"] }
   end
   rows
@@ -43,14 +48,20 @@ def geocode(address)
   uri = URI("https://msearch.gsi.go.jp/address-search/AddressSearch")
   uri.query = URI.encode_www_form(q: address)
 
-  res = Net::HTTP.get_response(uri)
+  res = Net::HTTP.start(uri.host, uri.port, use_ssl: true,
+                        open_timeout: 5, read_timeout: 5) do |http|
+    http.get(uri.request_uri)
+  end
   return nil unless res.is_a?(Net::HTTPSuccess)
 
   data = JSON.parse(res.body)
   return nil if data.empty?
 
   # geometry.coordinates は [経度, 緯度] の順
-  lng, lat = data[0]["geometry"]["coordinates"]
+  coords = data.dig(0, "geometry", "coordinates")
+  return nil unless coords.is_a?(Array) && coords.size >= 2
+
+  lng, lat = coords
   { lat: lat, lng: lng }
 rescue StandardError => e
   warn "geocode error: #{e.class}: #{e.message}"
@@ -64,6 +75,15 @@ def append_output(name, address, lat, lng)
     csv << ["建物名", "住所", "緯度", "経度"] if new_file
     csv << [name, address, lat, lng]
   end
+end
+
+# 緯度経度として妥当か（範囲チェック付き）
+def valid_coord?(lat, lng)
+  lat_f = Float(lat)
+  lng_f = Float(lng)
+  lat_f.between?(-90, 90) && lng_f.between?(-180, 180)
+rescue ArgumentError, TypeError
+  false
 end
 
 get "/" do
@@ -87,14 +107,11 @@ post "/save" do
   index = read_index
   current = rows[index]
 
-  lat = params[:lat]
-  lng = params[:lng]
-
-  if current && lat && lng && !lat.empty? && !lng.empty?
-    append_output(current[:name], current[:address], lat, lng)
+  if current && valid_coord?(params[:lat], params[:lng])
+    append_output(current[:name], current[:address],
+                  format("%.6f", params[:lat].to_f), format("%.6f", params[:lng].to_f))
+    write_index(index + 1)
   end
-
-  write_index(index + 1)
   redirect "/"
 end
 

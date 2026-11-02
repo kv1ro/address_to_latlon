@@ -16,15 +16,17 @@ TSVに書かれた「建物名,住所」を1件ずつ地図上に表示し、人
 ## セットアップ
 
 ```bash
-git clone [https://github.com/kv1ro/address_to_latlon.git](https://github.com/kv1ro/address_to_latlon.git)
+git clone https://github.com/kv1ro/address_to_latlon.git
 cd address_to_latlon
 
 # gemをプロジェクト内にインストール（システム領域を汚さない）
-bundle config set --local path vendor/bundle
 bundle install
 ```
 
-> `Gemfile.lock` はリポジトリに含めていません。`bundle install` 時に各環境で生成されます。
+`vendor/bundle` の保存先は `.bundle/config` に含めているので、`bundle config` は不要です。
+`Gemfile.lock` はバージョン固定のためコミットしています（`.bundle/config` で frozen モード）。
+
+> Ruby は `.ruby-version`（3.3.6）に合わせてください。別バージョンを使う場合は、そのバージョンで `bundle install` し直せば `vendor/bundle/<バージョン>/` に別々にインストールされます。
 
 ## 起動
 
@@ -126,9 +128,17 @@ rm -f data/output.tsv
 bundle install
 ```
 
+### `Bundler attempted to update ... but the lockfile can't be updated because frozen mode is set`
+
+`.bundle/config` で frozen モード（`Gemfile.lock` 固定）にしています。`Gemfile` を自分で変更したときだけ、以下でロックを更新してください。
+
+```bash
+bundle install --no-frozen
+```
+
 ### `PermissionError ... /usr/lib/ruby/gems/...`
 
-Bundlerがシステム領域に書き込もうとしています。以下を実行：
+Bundlerがシステム領域に書き込もうとしています。`.bundle/config`（`BUNDLE_PATH: vendor/bundle`）があるか確認し、無ければ以下を実行：
 
 ```bash
 bundle config set --local path vendor/bundle
@@ -137,7 +147,7 @@ bundle install
 
 ### `cannot load such file -- csv / erb`
 
-Rubyが3.4系になっていないか確認してください（3.3.6が必要）。
+`bundle install` が未実行か、Rubyのバージョンと `vendor/bundle` が合っていない可能性があります。`.ruby-version` の Ruby で `bundle install` してください。
 
 ```bash
 ruby -v
